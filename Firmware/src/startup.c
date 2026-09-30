@@ -1,9 +1,12 @@
 /** \file
   \brief Vector table and reset handler for the STM32F401.
 
-  Plain C instead of ST's assembler startup file. Every interrupt without
-  a handler of its own lands in Default_Handler, which stops there so a
-  debugger shows the culprit.
+  GCC only. Plain C instead of ST's assembler startup file. Every
+  interrupt without a handler of its own lands in Default_Handler, which
+  stops there so a debugger shows the culprit.
+
+  The IAR build uses ST's EWARM/startup_stm32f401xc.s instead. Both call
+  SystemInit() first, before .data / .bss are set up.
 */
 
 #include <stdint.h>
@@ -71,10 +74,8 @@ const vector_t vector_table[VECTOR_COUNT] = {
 void Reset_Handler(void) {
   uint32_t *src, *dst;
 
-  // FPU on (CP10, CP11 full access) before any floating point instruction.
-  SCB->CPACR |= (0xFUL << 20);
-  __DSB();
-  __ISB();
+  // FPU on, see system.c. Like ST's startup files, before C runtime init.
+  SystemInit();
 
   // .data from flash, .bss zeroed.
   for (src = &_sidata, dst = &_sdata; dst < &_edata; )
@@ -82,7 +83,6 @@ void Reset_Handler(void) {
   for (dst = &_sbss; dst < &_ebss; )
     *dst++ = 0;
 
-  SystemInit();
   main();
 
   for (;;) {
