@@ -1,0 +1,7 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+
+# Firmware build output
+Firmware/build/
