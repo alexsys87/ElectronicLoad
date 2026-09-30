@@ -25,10 +25,17 @@ static bool hse_ok;
   #error BOARD_HSE_HZ must be a whole number of MHz.
 #endif
 
-/// Called from the reset handler, before main().
+/**
+  Called from the reset handler (startup.c for GCC, startup_stm32f401xc.s
+  for IAR) before .data and .bss are initialized: must not use either.
+  Only switches the FPU on; clocks come in system_init(), from main().
+*/
 void SystemInit(void) {
-  // Nothing: the reset handler already enabled the FPU, clocks come in
-  // system_init() so they run with .data and .bss set up.
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+  SCB->CPACR |= (0xFUL << 20);            // CP10, CP11 full access
+  __DSB();
+  __ISB();
+#endif
 }
 
 static bool wait_bit(volatile uint32_t *reg, uint32_t mask, uint32_t value) {

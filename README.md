@@ -16,13 +16,19 @@
 
 | Каталог | Что внутри |
 |---|---|
-| [`Firmware/`](Firmware) | Прошивка STM32F401 (C, регистровый уровень, без HAL), Makefile, линкер-скрипт, симулятор модели для ПК |
+| [`Firmware/`](Firmware) | Прошивка STM32F401 (C, регистровый уровень, без HAL): Makefile для GCC, проект IAR EWARM, симулятор модели для ПК |
 | [`WpfApp/`](WpfApp) | WPF-приложение (.NET 8, OxyPlot): подключение, уставки, график, таблица, экспорт CSV/PNG |
 
 ```
 Firmware/
-  Makefile               сборка, прошивка (st-flash / dfu-util), симулятор
-  stm32f401xc.ld         линкер-скрипт (256K flash / 64K RAM, подходит и для F401CE)
+  Makefile               сборка GCC, прошивка (st-flash / dfu-util), симулятор
+  stm32f401xc.ld         линкер-скрипт GCC (256K flash / 64K RAM, подходит и для F401CE)
+  EWARM/                 проект IAR Embedded Workbench for Arm
+    battery_emu.eww      рабочее пространство (открывать его)
+    battery_emu.ewp      проект: конфигурации Debug и Release
+    battery_emu.ewd      настройки отладчика (ST-LINK, flash loader STM32F401xC)
+    startup_stm32f401xc.s  стартовый файл ST для IAR (таблица векторов)
+    stm32f401xc_flash.icf  конфигурация линкера IAR (стек 4 КБ)
   src/
     config.h             все параметры эмуляции и платы
     main.c               главный цикл, светодиод, кнопка
@@ -31,9 +37,9 @@ Firmware/
     usb_cdc.c/.h         USB CDC ACM на OTG_FS (адаптирован драйвер из Teacup)
     system.c/.h          тактирование 84 МГц / USB 48 МГц, SysTick, DWT
     board.c/.h           светодиод PC13, кнопка KEY (PA0)
-    startup.c            таблица векторов и Reset_Handler
+    startup.c            таблица векторов и Reset_Handler (только для GCC)
   sim/sim_main.c         та же модель и протокол на ПК (stdin/stdout, CSV)
-  Drivers/CMSIS/         заголовки CMSIS (ARM, ST), Apache-2.0
+  Drivers/CMSIS/         заголовки CMSIS (ARM, ST, включая cmsis_iccarm.h для IAR), Apache-2.0
 WpfApp/
   ElectronicLoad.sln / .csproj
   MainWindow.xaml, MainViewModel.cs, PX100Protocol.cs, ...
@@ -91,6 +97,29 @@ make                # build/battery_emu.elf, .bin, .hex
 ```sh
 make clean && make CDEFS="-DEMU_TIME_SCALE=120 -DBAT_CAPACITY_MAH=3400"
 ```
+
+### Сборка в IAR Embedded Workbench for Arm
+
+1. Открыть `Firmware/EWARM/battery_emu.eww` (*File → Open Workspace*).
+2. Выбрать конфигурацию **Debug** (оптимизация Low) или **Release** (оптимизация High) и нажать *Project → Make* (F7).
+3. Результат: `Firmware/EWARM/<конфигурация>/Exe/battery_emu.out` (ELF с отладочной информацией) и `battery_emu.hex`. Hex можно прошить через DFU или STM32CubeProgrammer (см. ниже).
+4. Прошивка и отладка из IAR: подключить ST-LINK к SWD (SWDIO, SWCLK, GND, 3V3) и нажать *Project → Download and Debug* (Ctrl+D). В `battery_emu.ewd` уже выбраны драйвер ST-LINK и flash loader для STM32F401xC.
+
+Что настроено в проекте:
+
+| Параметр | Значение |
+|---|---|
+| Кристалл | ST STM32F401CC, Cortex-M4, FPU VFPv4 single precision |
+| Define | `STM32F401xC` |
+| Include | `..\src`, `..\Drivers\CMSIS\Include`, `..\Drivers\CMSIS\Device\ST\STM32F4xx\Include` |
+| CMSIS | из репозитория (встроенный CMSIS IAR выключен, чтобы не было двух копий `core_cm4.h`) |
+| Стартовый файл | `startup_stm32f401xc.s` от ST. Вызывает `SystemInit()` (включает FPU), затем `__iar_program_start` → `main()` |
+| Линкер | `stm32f401xc_flash.icf`: flash `0x08000000`–`0x0803FFFF`, RAM `0x20000000`–`0x2000FFFF`, CSTACK 4 КБ |
+| Выход | `battery_emu.out` + `battery_emu.hex` |
+
+В проект IAR входят те же исходники, что и в Makefile, кроме `src/startup.c`: это стартовый файл только для GCC. Параметры эмуляции меняются в `src/config.h` или в *Project → Options → C/C++ Compiler → Preprocessor → Defined symbols* (например `EMU_TIME_SCALE=120`).
+
+Проект сделан на основе шаблона STM32CubeF4 для EWARM (формат EWARM 7.x). IAR 8.x и 9.x откроют его и при первом сохранении предложат обновить формат, это нормально.
 
 ### Прошивка платы
 
@@ -187,4 +216,4 @@ dotnet run
 
 ## Лицензии сторонних файлов
 
-`Firmware/Drivers/CMSIS` содержит заголовки CMSIS от Arm (CMSIS 5.9.0) и STMicroelectronics (cmsis_device_f4) под лицензией Apache-2.0. Тексты лицензий лежат рядом с файлами.
+`Firmware/Drivers/CMSIS` содержит заголовки CMSIS от Arm (CMSIS 5.9.0) и STMicroelectronics (cmsis_device_f4) под лицензией Apache-2.0. Тексты лицензий лежат рядом с файлами. `Firmware/EWARM/startup_stm32f401xc.s` и `stm32f401xc_flash.icf` взяты из cmsis_device_f4 (Apache-2.0, текст в `Firmware/Drivers/CMSIS/Device/ST/STM32F4xx/LICENSE.md`). Размер стека в `.icf` увеличен до 4 КБ.

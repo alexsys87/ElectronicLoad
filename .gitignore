@@ -5,3 +5,10 @@ obj/
 
 # Firmware build output
 Firmware/build/
+
+# IAR Embedded Workbench output and per-user files
+Firmware/EWARM/Debug/
+Firmware/EWARM/Release/
+Firmware/EWARM/settings/
+Firmware/EWARM/*.dep
+Firmware/EWARM/*.ewt
