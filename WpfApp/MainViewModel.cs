@@ -48,6 +48,7 @@ namespace Electronic_Load
         private double _minX = double.NaN, _maxX = double.NaN;
         private double _minLeft = double.NaN, _maxLeft = double.NaN;
         private double _minRight = double.NaN, _maxRight = double.NaN;
+        private double _minTemp = double.NaN, _maxTemp = double.NaN;
 
         public MainViewModel()
         {
@@ -643,13 +644,17 @@ namespace Electronic_Load
                 LegendOrientation = LegendOrientation.Vertical
             });
 
-            model.Axes.Add(CreateAxis(AxisPosition.Left, "Voltage (V) / Current (A) / Temp (°C)", "LeftAxis"));
+            model.Axes.Add(CreateAxis(AxisPosition.Left, "Voltage (V) / Current (A)", "LeftAxis"));
             model.Axes.Add(CreateAxis(AxisPosition.Right, "Power (W)", "RightAxis"));
+            // Temperature has its own scale: sharing the voltage axis squeezes the discharge curve flat
+            var tempAxis = CreateAxis(AxisPosition.Right, "Temp (°C)", "TempAxis");
+            tempAxis.PositionTier = 1;
+            model.Axes.Add(tempAxis);
             model.Axes.Add(CreateAxis(AxisPosition.Bottom, "Time (s)", "BottomAxis"));
 
             model.Series.Add(CreateSeries("Voltage", "LeftAxis"));
             model.Series.Add(CreateSeries("Current", "LeftAxis"));
-            model.Series.Add(CreateSeries("Temperature", "LeftAxis"));
+            model.Series.Add(CreateSeries("Temperature", "TempAxis"));
             model.Series.Add(CreateSeries("Power", "RightAxis"));
             return model;
         }
@@ -694,10 +699,11 @@ namespace Electronic_Load
             SeriesAt(SerPower).Points.Add(new DataPoint(r.Elapsed, r.Power));
 
             _minX = Min(_minX, r.Elapsed); _maxX = Max(_maxX, r.Elapsed);
-            // All three left-axis series count, not only the voltage
-            _minLeft = Min(_minLeft, Math.Min(r.Voltage, Math.Min(r.Current, r.Temperature)));
-            _maxLeft = Max(_maxLeft, Math.Max(r.Voltage, Math.Max(r.Current, r.Temperature)));
+            // Both left-axis series count, not only the voltage
+            _minLeft = Min(_minLeft, Math.Min(r.Voltage, r.Current));
+            _maxLeft = Max(_maxLeft, Math.Max(r.Voltage, r.Current));
             _minRight = Min(_minRight, r.Power); _maxRight = Max(_maxRight, r.Power);
+            _minTemp = Min(_minTemp, r.Temperature); _maxTemp = Max(_maxTemp, r.Temperature);
         }
 
         private static double Min(double acc, double v) => double.IsNaN(acc) ? v : Math.Min(acc, v);
@@ -708,7 +714,7 @@ namespace Electronic_Load
             DataRecords.Clear();
             foreach (var s in PlotModel.Series.OfType<LineSeries>())
                 s.Points.Clear();
-            _minX = _maxX = _minLeft = _maxLeft = _minRight = _maxRight = double.NaN;
+            _minX = _maxX = _minLeft = _maxLeft = _minRight = _maxRight = _minTemp = _maxTemp = double.NaN;
             _sessionStart = DateTime.Now;
             _logImported = false;
             ApplyAxisRanges();
@@ -722,6 +728,11 @@ namespace Electronic_Load
             var left = AxisByKey("LeftAxis");
             var right = AxisByKey("RightAxis");
             var bottom = AxisByKey("BottomAxis");
+
+            // The temperature axis always follows the data (no manual range for it)
+            SetRange(AxisByKey("TempAxis"), double.IsNaN(_maxTemp)
+                ? (0, 50)
+                : (Math.Floor(_minTemp) - 2, Math.Ceiling(_maxTemp) + 2));
 
             if (AutoScaleEnabled && !double.IsNaN(_maxX))
             {
