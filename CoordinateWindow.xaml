@@ -1,0 +1,65 @@
+<Window x:Class="Electronic_Load.CoordinateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Axis range setting" SizeToContent="Height" Width="500"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}">
+
+    <Window.Resources>
+        <!-- BasedOn keeps the themed template from Themes/Controls.xaml -->
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="130"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="20"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="60"/>
+        </Grid.ColumnDefinitions>
+
+        <Label Content="Y left axis range:" Grid.Row="0" Grid.Column="0"/>
+        <TextBox x:Name="YLeftMin" Grid.Row="0" Grid.Column="1"/>
+        <Label Content="-" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center"/>
+        <TextBox x:Name="YLeftMax" Grid.Row="0" Grid.Column="3"/>
+        <Label Content="V/A/°C" Grid.Row="0" Grid.Column="4"/>
+
+        <Label Content="Y right axis range:" Grid.Row="1" Grid.Column="0"/>
+        <TextBox x:Name="YRightMin" Grid.Row="1" Grid.Column="1"/>
+        <Label Content="-" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center"/>
+        <TextBox x:Name="YRightMax" Grid.Row="1" Grid.Column="3"/>
+        <Label Content="W" Grid.Row="1" Grid.Column="4"/>
+
+        <Label Content="Timeline:" Grid.Row="2" Grid.Column="0"/>
+        <TextBox x:Name="TimeMin" Grid.Row="2" Grid.Column="1"/>
+        <Label Content="-" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Center"/>
+        <TextBox x:Name="TimeMax" Grid.Row="2" Grid.Column="3"/>
+        <Label Content="s" Grid.Row="2" Grid.Column="4"/>
+
+        <TextBlock Grid.Row="3" Grid.ColumnSpan="5" Margin="5,6,5,0" TextWrapping="Wrap" FontSize="11"
+                   Foreground="{DynamicResource SubtleTextBrush}"
+                   Text="Applying a manual range turns Auto Scale off (View → Auto Scale)."/>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="4" Grid.ColumnSpan="5" HorizontalAlignment="Center" Margin="0,10,0,0">
+            <Button Content="OK" Width="120" Height="30" Margin="5" IsDefault="True" Click="OKButton_Click"/>
+            <Button Content="Cancel" Width="120" Height="30" Margin="5" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
