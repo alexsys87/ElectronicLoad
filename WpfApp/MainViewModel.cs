@@ -43,6 +43,7 @@ namespace Electronic_Load
         private DateTime _runStartedAt;   // snapshots older than this are ignored for the running state
         private bool _isLoading;
         private bool _logImported;        // DataRecords came from a CSV file, not from this session
+        private bool _testFinished;       // the device ended the test itself (cutoff, timer, protection)
 
         // Data extents for auto scale
         private double _minX = double.NaN, _maxX = double.NaN;
@@ -481,6 +482,7 @@ namespace Electronic_Load
             {
                 // The load switched itself off: cutoff voltage, timer or a protection
                 _isRunning = false;
+                _testFinished = true;
                 LastEvent = $"Load switched off by the device at {s.Timestamp:HH:mm:ss} " +
                             $"({s.Voltage:F2} V, {s.CapacityMAh:F0} mAh)";
                 RaiseStateChanged();
@@ -528,7 +530,12 @@ namespace Electronic_Load
         {
             if (!TryReadSetpoints(out double current, out double cutoff, out TimeSpan timer))
                 return false;
+            await SendSetpointsAsync(protocol, current, cutoff, timer);
+            return true;
+        }
 
+        private async Task SendSetpointsAsync(PX100Protocol protocol, double current, double cutoff, TimeSpan timer)
+        {
             var sp = await Task.Run(() =>
             {
                 protocol.SetCurrent(current);
@@ -538,7 +545,6 @@ namespace Electronic_Load
             });
             ShowDeviceSetpoints(sp);
             SaveSettings();
-            return true;
         }
 
         private async Task ApplySettingsAsync()
@@ -579,20 +585,36 @@ namespace Electronic_Load
                 }
                 else
                 {
-                    if (!await SendSetpointsAsync(protocol))
+                    if (!TryReadSetpoints(out double current, out double cutoff, out TimeSpan timer))
                         return;
+
+                    var mode = AskStartMode(current, cutoff, timer);
+                    if (mode == StartMode.Cancel)
+                        return;
+
+                    await SendSetpointsAsync(protocol, current, cutoff, timer);
+
+                    if (mode == StartMode.NewTest)
+                    {
+                        // Clean slate: empty log and graph, device mAh / mWh / time from zero
+                        ClearLog();
+                        await Task.Run(protocol.ResetCounters);
+                        Capacity = 0;
+                        Energy = 0;
+                    }
+
                     await Task.Run(() => protocol.SetOutput(true));
 
-                    // A new session starts at t = 0; after Stop the log continues on the same time axis.
-                    // Imported data has its own time base, so it is replaced by the new session.
-                    if (_logImported)
-                        ClearLog();
+                    // A new test starts at t = 0; a resumed one continues on the same time axis
                     if (DataRecords.Count == 0)
                         _sessionStart = DateTime.Now;
                     _runStartedAt = DateTime.Now;
+                    _testFinished = false;
                     _isRunning = true;
                     IsLoadOn = true;
-                    LastEvent = $"Started at {DateTime.Now:HH:mm:ss}";
+                    LastEvent = mode == StartMode.NewTest
+                        ? $"Test started at {DateTime.Now:HH:mm:ss}"
+                        : $"Test resumed at {DateTime.Now:HH:mm:ss}";
                 }
             }
             catch (Exception ex)
@@ -604,6 +626,77 @@ namespace Electronic_Load
                 RaiseStateChanged();
                 SetBusy(false);
             }
+        }
+
+        private enum StartMode { Cancel, NewTest, Resume }
+
+        /// <summary>
+        /// Confirmation before the load is switched on:
+        /// - empty log: confirm the start of a new test (guards against an accidental click);
+        /// - finished test or imported data: warn that a new test starts from scratch, offer to save;
+        /// - test stopped by the user: continue it or start a new one.
+        /// </summary>
+        private StartMode AskStartMode(double current, double cutoff, TimeSpan timer)
+        {
+            var owner = Application.Current.MainWindow;
+            string settings =
+                $"Current: {current:F2} A\n" +
+                $"Cutoff voltage: {cutoff:F2} V\n" +
+                $"Timer: {(timer == TimeSpan.Zero ? "off" : InputParsing.FormatDuration(timer))}";
+
+            if (DataRecords.Count == 0)
+            {
+                var answer = MessageBox.Show(owner,
+                    $"Start a new discharge test?\n\n{settings}\n\nThe load will be switched on.",
+                    "Start test", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+                return answer == MessageBoxResult.OK ? StartMode.NewTest : StartMode.Cancel;
+            }
+
+            if (!_testFinished && !_logImported)
+            {
+                var answer = MessageBox.Show(owner,
+                    "The current test was stopped manually.\n\n" +
+                    "Yes - continue this test (the log and the graph continue)\n" +
+                    "No - start a new test from scratch\n" +
+                    "Cancel - do not start",
+                    "Start test", MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+                if (answer == MessageBoxResult.Yes)
+                    return StartMode.Resume;
+                if (answer != MessageBoxResult.No)
+                    return StartMode.Cancel;
+            }
+
+            return ConfirmNewTestOverData(owner, settings) ? StartMode.NewTest : StartMode.Cancel;
+        }
+
+        /// <summary>Warns that the data on screen will be cleared; offers to save it first.</summary>
+        private bool ConfirmNewTestOverData(Window owner, string settings)
+        {
+            string what;
+            if (_logImported)
+                what = "The graph shows data imported from a file.";
+            else
+            {
+                var last = DataRecords[^1];
+                what = _testFinished
+                    ? $"The previous test is finished ({last.Capacity:F0} mAh, {last.Energy:F0} mWh, {last.ElapsedText})."
+                    : "The current test will be discarded.";
+            }
+
+            var answer = MessageBox.Show(owner,
+                $"{what}\n\n" +
+                "A new test starts from scratch: the graph, the log and the device counters " +
+                "(mAh, mWh, time) are cleared. Unsaved data will be lost.\n\n" +
+                $"{settings}\n\n" +
+                "Save the current data to a CSV file first?\n\n" +
+                "Yes - save, then start the new test\n" +
+                "No - start the new test without saving\n" +
+                "Cancel - do not start",
+                "Start a new test", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
+
+            if (answer == MessageBoxResult.Yes)
+                return ExportCsv();   // the user may still cancel the save dialog
+            return answer == MessageBoxResult.No;
         }
 
         /// <summary>Clears the log and the device mAh/mWh/time counters.</summary>
@@ -717,6 +810,7 @@ namespace Electronic_Load
             _minX = _maxX = _minLeft = _maxLeft = _minRight = _maxRight = _minTemp = _maxTemp = double.NaN;
             _sessionStart = DateTime.Now;
             _logImported = false;
+            _testFinished = false;
             ApplyAxisRanges();
             PlotModel.InvalidatePlot(true);
             CommandManager.InvalidateRequerySuggested();
@@ -813,7 +907,8 @@ namespace Electronic_Load
         // =====================================================================
         // Files
         // =====================================================================
-        private void ExportCsv()
+        /// <summary>Saves the log as CSV; returns false when the user cancels or the write fails.</summary>
+        private bool ExportCsv()
         {
             string safeName = string.IsNullOrWhiteSpace(MeasurementName)
                 ? "graph_data"
@@ -825,7 +920,7 @@ namespace Electronic_Load
                 DefaultExt = "csv",
                 FileName = $"{safeName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
             };
-            if (dialog.ShowDialog() != true) return;
+            if (dialog.ShowDialog() != true) return false;
 
             try
             {
@@ -833,10 +928,12 @@ namespace Electronic_Load
                 DataCsv.Write(writer, DataRecords);
                 MessageBox.Show($"{DataRecords.Count} records exported to {dialog.FileName}", "Export",
                     MessageBoxButton.OK, MessageBoxImage.Information);
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Export failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
