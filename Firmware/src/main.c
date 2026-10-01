@@ -34,7 +34,7 @@ static void led_update(uint32_t now) {
   if ( ! system_hse_ok()) {
     on = (now / 100U) & 1U;
   }
-  else if (emu_output_on()) {
+  else if (dev_output_on()) {
     on = true;
   }
   else {

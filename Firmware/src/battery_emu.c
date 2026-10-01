@@ -175,7 +175,7 @@ void emu_new_battery(void) {
   s.v_rc = 0.0;
   s.i_load = 0.0;
   s.v_term = ocv(1.0);
-  emu_reset_counters();
+  dev_reset_counters();
   update_measurement();
 }
 
@@ -232,7 +232,7 @@ void emu_step(void) {
   update_measurement();
 }
 
-void emu_set_output(bool on) {
+void dev_set_output(bool on) {
   if (on) {
     if (s.on)
       return;
@@ -249,35 +249,35 @@ void emu_set_output(bool on) {
   }
 }
 
-void emu_set_current_ca(uint16_t amps_x100) {
+void dev_set_current_ca(uint16_t amps_x100) {
   s.set_ca = amps_x100;
 }
 
-void emu_set_cutoff_cv(uint16_t volts_x100) {
+void dev_set_cutoff_cv(uint16_t volts_x100) {
   s.cutoff_cv = volts_x100;
 }
 
-void emu_set_timer_s(uint16_t seconds) {
+void dev_set_timer_s(uint16_t seconds) {
   s.timer_s = seconds;
 }
 
-void emu_reset_counters(void) {
+void dev_reset_counters(void) {
   s.cap_mah = 0.0;
   s.energy_mwh = 0.0;
   s.test_time_s = 0.0;
 }
 
-uint16_t emu_current_setpoint_ca(void) { return s.set_ca; }
-uint16_t emu_cutoff_setpoint_cv(void)  { return s.cutoff_cv; }
-uint16_t emu_timer_setpoint_s(void)    { return s.timer_s; }
+uint16_t dev_current_setpoint_ca(void) { return s.set_ca; }
+uint16_t dev_cutoff_setpoint_cv(void)  { return s.cutoff_cv; }
+uint16_t dev_timer_setpoint_s(void)    { return s.timer_s; }
 
-bool     emu_output_on(void)    { return s.on; }
-uint32_t emu_voltage_mv(void)   { return s.meas_mv; }
-uint32_t emu_current_ma(void)   { return s.meas_ma; }
-uint32_t emu_capacity_mah(void) { return (uint32_t)s.cap_mah; }
-uint32_t emu_energy_mwh(void)   { return (uint32_t)s.energy_mwh; }
-int32_t  emu_temperature_c(void) { return (int32_t)lround(s.temp_c); }
-uint32_t emu_test_time_s(void)  { return (uint32_t)s.test_time_s; }
+bool     dev_output_on(void)    { return s.on; }
+uint32_t dev_voltage_mv(void)   { return s.meas_mv; }
+uint32_t dev_current_ma(void)   { return s.meas_ma; }
+uint32_t dev_capacity_mah(void) { return (uint32_t)s.cap_mah; }
+uint32_t dev_energy_mwh(void)   { return (uint32_t)s.energy_mwh; }
+int32_t  dev_temperature_c(void) { return (int32_t)lround(s.temp_c); }
+uint32_t dev_test_time_s(void)  { return (uint32_t)s.test_time_s; }
 
 emu_stop_reason_t emu_stop_reason(void) { return s.stop; }
 float emu_state_of_charge(void) { return (float)(s.charge_mah / BAT_CAPACITY_MAH); }

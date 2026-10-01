@@ -20,7 +20,7 @@
 */
 
 #include "px100.h"
-#include "battery_emu.h"
+#include "device.h"
 
 #include <stddef.h>
 
@@ -72,42 +72,42 @@ static void handle(uint8_t cmd, uint8_t d1, uint8_t d2) {
   switch (cmd) {
     // Control.
     case 0x01:
-      emu_set_output(d1 != 0);
+      dev_set_output(d1 != 0);
       send_ack();
       break;
     case 0x02:
-      emu_set_current_ca((uint16_t)(d1 * 100U + (d2 > 99 ? 99 : d2)));
+      dev_set_current_ca((uint16_t)(d1 * 100U + (d2 > 99 ? 99 : d2)));
       send_ack();
       break;
     case 0x03:
-      emu_set_cutoff_cv((uint16_t)(d1 * 100U + (d2 > 99 ? 99 : d2)));
+      dev_set_cutoff_cv((uint16_t)(d1 * 100U + (d2 > 99 ? 99 : d2)));
       send_ack();
       break;
     case 0x04:
-      emu_set_timer_s((uint16_t)((d1 << 8) | d2));
+      dev_set_timer_s((uint16_t)((d1 << 8) | d2));
       send_ack();
       break;
     case 0x05:
-      emu_reset_counters();
+      dev_reset_counters();
       send_ack();
       break;
 
     // Queries.
-    case 0x10: send_value(emu_output_on() ? 1U : 0U);         break;
-    case 0x11: send_value(emu_voltage_mv());                   break;
-    case 0x12: send_value(emu_current_ma());                   break;
-    case 0x13: send_hms(emu_test_time_s());                    break;
-    case 0x14: send_value(emu_capacity_mah());                 break;
-    case 0x15: send_value(emu_energy_mwh());                   break;
+    case 0x10: send_value(dev_output_on() ? 1U : 0U);         break;
+    case 0x11: send_value(dev_voltage_mv());                   break;
+    case 0x12: send_value(dev_current_ma());                   break;
+    case 0x13: send_hms(dev_test_time_s());                    break;
+    case 0x14: send_value(dev_capacity_mah());                 break;
+    case 0x15: send_value(dev_energy_mwh());                   break;
     case 0x16: {
-      int32_t t = emu_temperature_c();
+      int32_t t = dev_temperature_c();
 
       send_value(t > 0 ? (uint32_t)t : 0U);
       break;
     }
-    case 0x17: send_value(emu_current_setpoint_ca());          break;
-    case 0x18: send_value(emu_cutoff_setpoint_cv());           break;
-    case 0x19: send_hms(emu_timer_setpoint_s());               break;
+    case 0x17: send_value(dev_current_setpoint_ca());          break;
+    case 0x18: send_value(dev_cutoff_setpoint_cv());           break;
+    case 0x19: send_hms(dev_timer_setpoint_s());               break;
 
     default:                            // Unknown: no answer, like the original.
       break;

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\electronic_load.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\battery_emu.ewp</path>
+  </project>
+  <batchBuild>
+    <batchDefinition>
+      <name>All</name>
+      <member>
+        <project>electronic_load</project>
+        <configuration>Debug</configuration>
+      </member>
+      <member>
+        <project>electronic_load</project>
+        <configuration>Release</configuration>
+      </member>
+      <member>
+        <project>battery_emu</project>
+        <configuration>Debug</configuration>
+      </member>
+      <member>
+        <project>battery_emu</project>
+        <configuration>Release</configuration>
+      </member>
+    </batchDefinition>
+  </batchBuild>
+</workspace>
