@@ -1,5 +1,8 @@
 /** \file
-  \brief Build time configuration of the battery emulator.
+  \brief Build time configuration: board, USB and the battery emulator.
+
+  The real load (APP_LOAD, sources in ../load) uses the board and USB part
+  of this file; its own settings are in load/load_config.h.
 
   Everything here can also be overridden from the make command line, e.g.
     make CDEFS="-DEMU_TIME_SCALE=120 -DBAT_CAPACITY_MAH=3400"
@@ -40,7 +43,11 @@
   #define USB_MANUFACTURER      "ElectronicLoad"
 #endif
 #ifndef USB_PRODUCT
-  #define USB_PRODUCT           "BlackPill Battery Emulator (PX-100 protocol)"
+  #ifdef APP_LOAD
+    #define USB_PRODUCT         "ElectronicLoad 60W (PX-100 protocol)"
+  #else
+    #define USB_PRODUCT         "BlackPill Battery Emulator (PX-100 protocol)"
+  #endif
 #endif
 
 /* ---------------------------------------------------------------------- */

@@ -55,21 +55,21 @@ static int run_curve(double amps, double cutoff) {
   float t0;
 
   emu_init();
-  emu_set_current_ca((uint16_t)(amps * 100.0 + 0.5));
-  emu_set_cutoff_cv((uint16_t)(cutoff * 100.0 + 0.5));
-  emu_set_output(true);
+  dev_set_current_ca((uint16_t)(amps * 100.0 + 0.5));
+  dev_set_cutoff_cv((uint16_t)(cutoff * 100.0 + 0.5));
+  dev_set_output(true);
   t0 = emu_sim_time_s();
 
   printf("time_s,voltage_V,current_A,capacity_mAh,energy_mWh,temp_C\n");
   for (;;) {
     emu_step();
     // One line per simulated 10 s, plus the final one.
-    if (step++ % 100U == 0U || ! emu_output_on())
+    if (step++ % 100U == 0U || ! dev_output_on())
       printf("%.1f,%.3f,%.3f,%u,%u,%d\n",
              (double)(emu_sim_time_s() - t0),
-             emu_voltage_mv() / 1000.0, emu_current_ma() / 1000.0,
-             emu_capacity_mah(), emu_energy_mwh(), emu_temperature_c());
-    if ( ! emu_output_on())
+             dev_voltage_mv() / 1000.0, dev_current_ma() / 1000.0,
+             dev_capacity_mah(), dev_energy_mwh(), dev_temperature_c());
+    if ( ! dev_output_on())
       break;
     if (step > 100000000U) {
       fprintf(stderr, "no cutoff reached\n");
@@ -77,8 +77,8 @@ static int run_curve(double amps, double cutoff) {
     }
   }
   fprintf(stderr, "stopped by %s after %u s, %u mAh, %u mWh\n",
-          reason_text(emu_stop_reason()), emu_test_time_s(),
-          emu_capacity_mah(), emu_energy_mwh());
+          reason_text(emu_stop_reason()), dev_test_time_s(),
+          dev_capacity_mah(), dev_energy_mwh());
   return 0;
 }
 

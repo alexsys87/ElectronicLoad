@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "device.h"
+
 /// Why the load switched off the last time.
 typedef enum {
   EMU_STOP_NONE = 0,        ///< Still running, or never started.
@@ -33,26 +35,7 @@ void emu_set_time_scale(uint16_t scale);
 /// Replace the cell with a fully charged one: load off, counters cleared.
 void emu_new_battery(void);
 
-/* Control, PX-100 semantics. */
-void emu_set_output(bool on);
-void emu_set_current_ca(uint16_t amps_x100);
-void emu_set_cutoff_cv(uint16_t volts_x100);
-void emu_set_timer_s(uint16_t seconds);
-void emu_reset_counters(void);
-
-/* Setpoints as stored. */
-uint16_t emu_current_setpoint_ca(void);
-uint16_t emu_cutoff_setpoint_cv(void);
-uint16_t emu_timer_setpoint_s(void);
-
-/* Readings, as the load would measure them. */
-bool     emu_output_on(void);
-uint32_t emu_voltage_mv(void);
-uint32_t emu_current_ma(void);
-uint32_t emu_capacity_mah(void);
-uint32_t emu_energy_mwh(void);
-int32_t  emu_temperature_c(void);
-uint32_t emu_test_time_s(void);
+/* Control and readings for the protocol: see device.h. */
 
 /* Extra state, for the LED and the PC simulator. */
 emu_stop_reason_t emu_stop_reason(void);
